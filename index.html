@@ -15,7 +15,7 @@
     <header class="hero">
       <p class="eyebrow">Local AI · No external API</p>
       <h1>Cutout Studio</h1>
-      <p class="subtitle">Drop a photo. Get a transparent PNG in seconds.</p>
+      <p class="subtitle">Drop a photo, remove background, then retouch manually if AI cuts too much.</p>
     </header>
 
     <section class="panel">
@@ -29,7 +29,7 @@
         <div class="controls">
           <button id="submit" class="btn btn-primary" type="submit">Remove background</button>
           <button id="clear" class="btn btn-ghost" type="button">Reset</button>
-          <a id="download" class="btn btn-download hidden" download="result-no-bg.png">Download PNG</a>
+          <button id="download" class="btn btn-download hidden" type="button">Download PNG</button>
         </div>
       </form>
 
@@ -46,6 +46,29 @@
           <img id="preview" class="preview hidden" alt="Processed image preview" />
         </section>
       </div>
+
+      <section id="editor" class="editor hidden">
+        <div class="editor-head">
+          <h3>Refine cutout</h3>
+          <p>Use <strong>Restore</strong> to bring back removed parts, or <strong>Erase</strong> to clean leftovers.</p>
+        </div>
+
+        <div class="editor-tools">
+          <button id="toolRestore" class="btn btn-tool active" type="button">Restore</button>
+          <button id="toolErase" class="btn btn-tool" type="button">Erase</button>
+          <label class="brush-wrap" for="brushSize">
+            Brush
+            <input id="brushSize" type="range" min="6" max="120" value="32" />
+            <span id="brushSizeValue">32px</span>
+          </label>
+          <button id="undoBtn" class="btn btn-tool" type="button">Undo</button>
+          <button id="resetMaskBtn" class="btn btn-tool" type="button">Reset edits</button>
+        </div>
+
+        <div class="canvas-wrap" id="canvasWrap">
+          <canvas id="editorCanvas" class="editor-canvas"></canvas>
+        </div>
+      </section>
     </section>
   </main>
 

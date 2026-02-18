@@ -4,8 +4,10 @@ const multer = require('multer');
 const path = require('path');
 const helmet = require('helmet');
 const compression = require('compression');
-const sharp = require('sharp');
-const { removeBackground } = require('@imgly/background-removal-node');
+const fs = require('fs/promises');
+const os = require('os');
+const crypto = require('crypto');
+const { execFile } = require('child_process');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -27,9 +29,7 @@ app.use(express.static(__dirname));
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 12 * 1024 * 1024
-  },
+  limits: { fileSize: 12 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (!file.mimetype.startsWith('image/')) {
       return cb(new Error('Only image files are allowed.'));
@@ -38,42 +38,51 @@ const upload = multer({
   }
 });
 
+function runRembg(inputPath, outputPath) {
+  const pythonBin = process.env.PYTHON_BIN || 'python3';
+  return new Promise((resolve, reject) => {
+    execFile(
+      pythonBin,
+      ['-m', 'rembg', 'i', inputPath, outputPath],
+      { timeout: 120000, maxBuffer: 10 * 1024 * 1024 },
+      (error, stdout, stderr) => {
+        if (error) {
+          return reject(new Error((stderr || error.message || 'rembg failed').trim()));
+        }
+        resolve({ stdout, stderr });
+      }
+    );
+  });
+}
+
 app.get('/health', (_, res) => {
   res.json({ ok: true });
 });
 
 app.post('/api/remove-background', upload.single('image'), async (req, res) => {
+  const reqId = crypto.randomUUID();
+  const inputPath = path.join(os.tmpdir(), `bg-${reqId}-input`);
+  const outputPath = path.join(os.tmpdir(), `bg-${reqId}-output.png`);
+
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No image provided.' });
     }
 
-    // Normalize any image format (jpg/webp/heic/etc if supported by libvips) to PNG first.
-    // This avoids the upstream "Unsupported format" errors.
-    const normalizedPng = await sharp(req.file.buffer)
-      .rotate()
-      .png()
-      .toBuffer();
+    await fs.writeFile(inputPath, req.file.buffer);
+    await runRembg(inputPath, outputPath);
 
-    const blob = await removeBackground(normalizedPng, {
-      model: process.env.BGREMOVER_MODEL || 'small',
-      output: {
-        format: 'image/png',
-        quality: 1,
-        type: 'foreground'
-      }
-    });
-
-    const arrayBuffer = await blob.arrayBuffer();
-    const outputBuffer = Buffer.from(arrayBuffer);
-
+    const outputBuffer = await fs.readFile(outputPath);
     const outputName = `${path.parse(req.file.originalname || 'image').name}-no-bg.png`;
+
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Content-Disposition', `attachment; filename="${outputName}"`);
     return res.send(outputBuffer);
   } catch (err) {
     const message = err.message || 'Unexpected server error.';
     return res.status(500).json({ error: `Background removal failed: ${message}` });
+  } finally {
+    await Promise.allSettled([fs.unlink(inputPath), fs.unlink(outputPath)]);
   }
 });
 

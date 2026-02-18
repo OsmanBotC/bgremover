@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const helmet = require('helmet');
 const compression = require('compression');
+const sharp = require('sharp');
 const { removeBackground } = require('@imgly/background-removal-node');
 
 const app = express();
@@ -47,7 +48,14 @@ app.post('/api/remove-background', upload.single('image'), async (req, res) => {
       return res.status(400).json({ error: 'No image provided.' });
     }
 
-    const blob = await removeBackground(req.file.buffer, {
+    // Normalize any image format (jpg/webp/heic/etc if supported by libvips) to PNG first.
+    // This avoids the upstream "Unsupported format" errors.
+    const normalizedPng = await sharp(req.file.buffer)
+      .rotate()
+      .png()
+      .toBuffer();
+
+    const blob = await removeBackground(normalizedPng, {
       model: process.env.BGREMOVER_MODEL || 'small',
       output: {
         format: 'image/png',

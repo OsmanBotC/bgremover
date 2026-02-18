@@ -12,17 +12,26 @@ const { execFile } = require('child_process');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      imgSrc: ["'self'", 'data:', 'blob:'],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      connectSrc: ["'self'"]
+const MIME_TO_EXT = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp'
+};
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:', 'blob:'],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        scriptSrc: ["'self'"],
+        connectSrc: ["'self'"]
+      }
     }
-  }
-}));
+  })
+);
 app.use(compression());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(__dirname));
@@ -31,8 +40,8 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 12 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (!file.mimetype.startsWith('image/')) {
-      return cb(new Error('Only image files are allowed.'));
+    if (!MIME_TO_EXT[file.mimetype]) {
+      return cb(new Error('Only JPG, PNG, and WebP images are allowed.'));
     }
     cb(null, true);
   }
@@ -44,7 +53,7 @@ function runRembg(inputPath, outputPath) {
     execFile(
       pythonBin,
       ['-m', 'rembg', 'i', inputPath, outputPath],
-      { timeout: 120000, maxBuffer: 10 * 1024 * 1024 },
+      { timeout: 120000, maxBuffer: 20 * 1024 * 1024 },
       (error, stdout, stderr) => {
         if (error) {
           return reject(new Error((stderr || error.message || 'rembg failed').trim()));
@@ -60,15 +69,16 @@ app.get('/health', (_, res) => {
 });
 
 app.post('/api/remove-background', upload.single('image'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No image provided.' });
+  }
+
   const reqId = crypto.randomUUID();
-  const inputPath = path.join(os.tmpdir(), `bg-${reqId}-input`);
+  const ext = MIME_TO_EXT[req.file.mimetype] || '.png';
+  const inputPath = path.join(os.tmpdir(), `bg-${reqId}-input${ext}`);
   const outputPath = path.join(os.tmpdir(), `bg-${reqId}-output.png`);
 
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No image provided.' });
-    }
-
     await fs.writeFile(inputPath, req.file.buffer);
     await runRembg(inputPath, outputPath);
 

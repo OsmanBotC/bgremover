@@ -3,178 +3,51 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BGRemover</title>
-  <style>
-    :root {
-      --bg: #0b1020;
-      --card: #121933;
-      --muted: #9aa6c1;
-      --text: #e7ecff;
-      --accent: #6d7cff;
-      --accent-2: #4cc9f0;
-      --danger: #ff6b6b;
-      --border: #263056;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      background: radial-gradient(1200px 500px at 10% -10%, #1a2452, transparent), var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-    }
-    .container {
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 2rem 1rem 3rem;
-    }
-    .hero { margin-bottom: 1.25rem; }
-    h1 { margin: 0 0 .4rem; font-size: clamp(1.6rem, 2.3vw, 2.2rem); }
-    .muted { color: var(--muted); margin: 0; }
-
-    .card {
-      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 1rem;
-      backdrop-filter: blur(6px);
-      box-shadow: 0 16px 50px rgba(0,0,0,.25);
-    }
-
-    .upload-area {
-      border: 1.5px dashed #3d4b7a;
-      border-radius: 14px;
-      padding: 1.1rem;
-      display: grid;
-      gap: .7rem;
-      transition: .2s ease;
-      background: rgba(255,255,255,.01);
-    }
-    .upload-area.dragover {
-      border-color: var(--accent-2);
-      box-shadow: inset 0 0 0 1px var(--accent-2);
-      background: rgba(76,201,240,.08);
-    }
-
-    .row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: .7rem;
-      align-items: center;
-    }
-
-    input[type=file] {
-      color: var(--muted);
-      max-width: 100%;
-      width: 100%;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: .6rem;
-      background: #0f1630;
-    }
-
-    button, .download {
-      border: 0;
-      border-radius: 12px;
-      padding: .72rem 1rem;
-      cursor: pointer;
-      font-weight: 700;
-      letter-spacing: .1px;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .primary {
-      background: linear-gradient(90deg, var(--accent), var(--accent-2));
-      color: #fff;
-    }
-    .primary:disabled { opacity: .65; cursor: not-allowed; }
-    .ghost {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text);
-    }
-
-    .status { margin: .7rem 0 0; color: var(--muted); min-height: 1.25rem; }
-    .error {
-      margin: .6rem 0 0;
-      padding: .55rem .7rem;
-      border-radius: 10px;
-      border: 1px solid rgba(255,107,107,.4);
-      background: rgba(255,107,107,.12);
-      color: #ffd1d1;
-    }
-    .hidden { display: none !important; }
-
-    .grid {
-      display: grid;
-      gap: .8rem;
-      grid-template-columns: repeat(2, minmax(0,1fr));
-      margin-top: 1rem;
-    }
-    .pane {
-      background: #0f1630;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: .75rem;
-    }
-    .pane h3 { margin: 0 0 .45rem; font-size: .95rem; color: var(--muted); font-weight: 600; }
-    .preview {
-      width: 100%;
-      aspect-ratio: 1 / 1;
-      object-fit: contain;
-      background: repeating-conic-gradient(#1b2348 0% 25%, #151d3d 0% 50%) 50% / 20px 20px;
-      border-radius: 10px;
-      border: 1px solid #2a3460;
-    }
-
-    .actions { margin-top: .8rem; display: flex; gap: .6rem; flex-wrap: wrap; }
-
-    @media (max-width: 760px) {
-      .grid { grid-template-columns: 1fr; }
-    }
-  </style>
+  <title>Cutout Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <div class="container">
-    <div class="hero">
-      <h1>BGRemover</h1>
-      <p class="muted">Upload a JPG/PNG/WebP, remove background locally on server, download transparent PNG.</p>
-    </div>
+  <div class="noise"></div>
+  <main class="page">
+    <header class="hero">
+      <p class="eyebrow">Local AI · No external API</p>
+      <h1>Cutout Studio</h1>
+      <p class="subtitle">Drop a photo. Get a transparent PNG in seconds.</p>
+    </header>
 
-    <div class="card">
+    <section class="panel">
       <form id="bg-form" novalidate>
-        <div id="upload-area" class="upload-area">
-          <div class="row">
-            <input id="image" name="image" type="file" accept="image/*" required />
-          </div>
-          <div class="row">
-            <button id="submit" class="primary" type="submit">Remove background</button>
-            <button id="clear" class="ghost" type="button">Clear</button>
-          </div>
+        <label id="dropzone" class="dropzone" for="image">
+          <input id="image" name="image" type="file" accept="image/jpeg,image/png,image/webp" required />
+          <div class="drop-title">Drag & drop image here</div>
+          <div class="drop-help">or click to browse · JPG, PNG, WebP · max 12MB</div>
+        </label>
+
+        <div class="controls">
+          <button id="submit" class="btn btn-primary" type="submit">Remove background</button>
+          <button id="clear" class="btn btn-ghost" type="button">Reset</button>
+          <a id="download" class="btn btn-download hidden" download="result-no-bg.png">Download PNG</a>
         </div>
       </form>
 
       <p id="status" class="status"></p>
       <p id="error" class="error hidden"></p>
 
-      <div class="grid">
-        <section class="pane">
+      <div class="preview-grid">
+        <section class="preview-card">
           <h3>Original</h3>
           <img id="originalPreview" class="preview hidden" alt="Original image preview" />
         </section>
-        <section class="pane">
-          <h3>Result</h3>
+        <section class="preview-card">
+          <h3>Transparent Result</h3>
           <img id="preview" class="preview hidden" alt="Processed image preview" />
         </section>
       </div>
-
-      <div class="actions">
-        <a id="download" class="download primary hidden" download="result-no-bg.png">Download PNG</a>
-      </div>
-    </div>
-  </div>
+    </section>
+  </main>
 
   <script src="/script.js"></script>
 </body>

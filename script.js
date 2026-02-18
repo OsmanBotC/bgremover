@@ -1,6 +1,6 @@
 const form = document.getElementById('bg-form');
 const imageInput = document.getElementById('image');
-const uploadArea = document.getElementById('upload-area');
+const dropzone = document.getElementById('dropzone');
 const statusEl = document.getElementById('status');
 const errorEl = document.getElementById('error');
 const originalPreviewEl = document.getElementById('originalPreview');
@@ -9,12 +9,12 @@ const downloadEl = document.getElementById('download');
 const submitBtn = document.getElementById('submit');
 const clearBtn = document.getElementById('clear');
 
-let currentObjectUrl = null;
-let originalObjectUrl = null;
+let resultUrl = null;
+let originalUrl = null;
 
 function clearError() {
-  errorEl.classList.add('hidden');
   errorEl.textContent = '';
+  errorEl.classList.add('hidden');
 }
 
 function showError(message) {
@@ -22,126 +22,131 @@ function showError(message) {
   errorEl.classList.remove('hidden');
 }
 
-function resetOutput() {
+function resetResult() {
   clearError();
   statusEl.textContent = '';
-  previewEl.classList.add('hidden');
-  previewEl.removeAttribute('src');
-  downloadEl.classList.add('hidden');
 
-  if (currentObjectUrl) {
-    URL.revokeObjectURL(currentObjectUrl);
-    currentObjectUrl = null;
+  previewEl.removeAttribute('src');
+  previewEl.classList.add('hidden');
+
+  downloadEl.classList.add('hidden');
+  downloadEl.removeAttribute('href');
+
+  if (resultUrl) {
+    URL.revokeObjectURL(resultUrl);
+    resultUrl = null;
   }
 }
 
 function clearAll() {
   imageInput.value = '';
-  resetOutput();
+  resetResult();
 
-  originalPreviewEl.classList.add('hidden');
   originalPreviewEl.removeAttribute('src');
-  if (originalObjectUrl) {
-    URL.revokeObjectURL(originalObjectUrl);
-    originalObjectUrl = null;
+  originalPreviewEl.classList.add('hidden');
+  if (originalUrl) {
+    URL.revokeObjectURL(originalUrl);
+    originalUrl = null;
   }
 }
 
 function validateImage(file) {
-  if (!file) return 'Please choose an image file.';
-  if (!file.type || !file.type.startsWith('image/')) return 'Please upload a valid image file.';
-  if (file.size > 12 * 1024 * 1024) return 'Image too large. Max size is 12MB.';
+  if (!file) return 'Please select an image first.';
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    return 'Only JPG, PNG, and WebP are supported.';
+  }
+  if (file.size > 12 * 1024 * 1024) return 'Image too large (max 12MB).';
   return null;
 }
 
-function setOriginalPreview(file) {
-  if (originalObjectUrl) URL.revokeObjectURL(originalObjectUrl);
-  originalObjectUrl = URL.createObjectURL(file);
-  originalPreviewEl.src = originalObjectUrl;
+function updateOriginalPreview(file) {
+  if (originalUrl) URL.revokeObjectURL(originalUrl);
+  originalUrl = URL.createObjectURL(file);
+  originalPreviewEl.src = originalUrl;
   originalPreviewEl.classList.remove('hidden');
 }
 
-imageInput.addEventListener('change', () => {
-  resetOutput();
-  const file = imageInput.files?.[0];
-  const validationError = validateImage(file);
-  if (validationError) {
-    showError(validationError);
-    return;
-  }
-  setOriginalPreview(file);
-});
-
 for (const evt of ['dragenter', 'dragover']) {
-  uploadArea.addEventListener(evt, (e) => {
+  dropzone.addEventListener(evt, (e) => {
     e.preventDefault();
-    e.stopPropagation();
-    uploadArea.classList.add('dragover');
+    dropzone.classList.add('dragover');
   });
 }
 for (const evt of ['dragleave', 'drop']) {
-  uploadArea.addEventListener(evt, (e) => {
+  dropzone.addEventListener(evt, (e) => {
     e.preventDefault();
-    e.stopPropagation();
-    uploadArea.classList.remove('dragover');
+    dropzone.classList.remove('dragover');
   });
 }
-uploadArea.addEventListener('drop', (e) => {
+
+dropzone.addEventListener('drop', (e) => {
   const file = e.dataTransfer?.files?.[0];
   if (!file) return;
+
   const dt = new DataTransfer();
   dt.items.add(file);
   imageInput.files = dt.files;
   imageInput.dispatchEvent(new Event('change', { bubbles: true }));
 });
 
+imageInput.addEventListener('change', () => {
+  resetResult();
+  const file = imageInput.files?.[0];
+  const error = validateImage(file);
+  if (error) {
+    showError(error);
+    return;
+  }
+  updateOriginalPreview(file);
+});
+
 clearBtn.addEventListener('click', clearAll);
 
-form.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  resetOutput();
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  resetResult();
 
   const file = imageInput.files?.[0];
-  const validationError = validateImage(file);
-  if (validationError) {
-    showError(validationError);
+  const error = validateImage(file);
+  if (error) {
+    showError(error);
     return;
   }
 
   submitBtn.disabled = true;
-  statusEl.textContent = 'Processing image...';
+  statusEl.textContent = 'Removing background...';
 
   try {
-    const body = new FormData();
-    body.append('image', file);
+    const data = new FormData();
+    data.append('image', file);
 
     const response = await fetch('/api/remove-background', {
       method: 'POST',
-      body
+      body: data
     });
 
     if (!response.ok) {
-      let msg = 'Could not process image.';
+      let msg = 'Failed to process image.';
       try {
-        const data = await response.json();
-        msg = data.error || msg;
+        const j = await response.json();
+        msg = j.error || msg;
       } catch (_) {}
       throw new Error(msg);
     }
 
     const blob = await response.blob();
-    currentObjectUrl = URL.createObjectURL(blob);
+    resultUrl = URL.createObjectURL(blob);
 
-    previewEl.src = currentObjectUrl;
+    previewEl.src = resultUrl;
     previewEl.classList.remove('hidden');
 
-    const baseName = file.name.replace(/\.[^/.]+$/, '') || 'result';
-    downloadEl.href = currentObjectUrl;
-    downloadEl.download = `${baseName}-no-bg.png`;
-    downloadEl.classList.remove('hidden');
+    const base = file.name.replace(/\.[^/.]+$/, '') || 'result';
+    downloadEl.href = resultUrl;
+    downloadEl.download = `${base}-no-bg.png`;
     downloadEl.textContent = `Download ${downloadEl.download}`;
+    downloadEl.classList.remove('hidden');
 
-    statusEl.textContent = 'Done!';
+    statusEl.textContent = 'Done — your PNG is ready.';
   } catch (err) {
     showError(err.message || 'Unexpected error.');
     statusEl.textContent = '';

@@ -48,11 +48,11 @@ const upload = multer({
 });
 
 function runRembg(inputPath, outputPath) {
-  const pythonBin = process.env.PYTHON_BIN || 'python3';
+  const rembgBin = process.env.REMBG_BIN || 'rembg';
   return new Promise((resolve, reject) => {
     execFile(
-      pythonBin,
-      ['-m', 'rembg', 'i', inputPath, outputPath],
+      rembgBin,
+      ['i', inputPath, outputPath],
       { timeout: 600000, maxBuffer: 20 * 1024 * 1024 },
       (error, stdout, stderr) => {
         if (error) {

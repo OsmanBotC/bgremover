@@ -53,10 +53,19 @@ function runRembg(inputPath, outputPath) {
     execFile(
       pythonBin,
       ['-m', 'rembg', 'i', inputPath, outputPath],
-      { timeout: 120000, maxBuffer: 20 * 1024 * 1024 },
+      { timeout: 600000, maxBuffer: 20 * 1024 * 1024 },
       (error, stdout, stderr) => {
         if (error) {
-          return reject(new Error((stderr || error.message || 'rembg failed').trim()));
+          const details = [
+            stderr,
+            stdout,
+            error.message,
+            error.code ? `code=${error.code}` : '',
+            error.signal ? `signal=${error.signal}` : ''
+          ]
+            .filter(Boolean)
+            .join(' | ');
+          return reject(new Error((details || 'rembg failed').trim()));
         }
         resolve({ stdout, stderr });
       }
